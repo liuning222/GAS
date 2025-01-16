@@ -61,7 +61,7 @@ transform = None
 if args.dataset in max_degrees:
     transform = OneHotDegree(max_degrees[args.dataset])
 print('transform:', transform)
-dataset = TUDataset(os.path.join('data', args.dataset), transform=transform, name=args.dataset)
+dataset = TUDataset(os.path.join('TUDataset', args.dataset), transform=transform, name=args.dataset)
 args.num_classes = dataset.num_classes
 args.num_features = dataset.num_features
 
