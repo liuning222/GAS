@@ -1,9 +1,9 @@
-# ELSA
+# SCAN
 
 
 ==========
 
-The source code of submission-550 for WWW 2024:《ELSA: Efficient Graph Representation Learning with Locality-oriented Substructure Awareness via Absorbing Convilution》
+The source code of submission-413 for SIGIR 2025:《Substructure-Aware Graph Representation Learning via Adaptive Node Absorbing》
 
 ==========
 
