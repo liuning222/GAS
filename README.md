@@ -3,7 +3,7 @@
 
 ==========
 
-The source code of submission-413 for SIGIR 2025:《Substructure-Aware Graph Representation Learning via Adaptive Node Absorbing》
+The source code of submission for TKDE《Substructure-Aware Graph Representation Learning via Adaptive Node Absorbing》
 
 ==========
 
