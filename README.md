@@ -3,7 +3,7 @@
 
 ==========
 
-The source code of submission for TKDE《Substructure-Aware Graph Representation Learning via Adaptive Node Absorbing》
+The source code of TKDE submission《Substructure-Aware Graph Representation Learning via Adaptive Node Absorbing》
 
 ==========
 
