@@ -1,6 +1,6 @@
 from OGBnetworks import Net
 import argparse
-from tqdm import tqdm
+from tqdm import tqdm, trange
 import random
 import numpy as np
 import torch
@@ -11,41 +11,36 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument('--seed', type=int, default=777,
                     help='seed')
-parser.add_argument('--dataset', type=str, default='ogbg-moltox21',
-                    help='ogbg-molhiv/ogbg-molpcba/ogbg-moltox21/ogbg-moltoxcast/ogbg-molbbbp')
+parser.add_argument('--batch_size', type=int, default=256,
+                    help='batch size')
+parser.add_argument('--lr', type=float, default=0.0015,
+                    help='learning rate')
+parser.add_argument('--weight_decay', type=float, default=0.0001,
+                    help='weight decay')
+parser.add_argument('--nhid', type=int, default=1024,
+                    help='hidden size')
+parser.add_argument('--num_layers', type=int, default=1, help='number of GCN and pooling layers')
+# parser.add_argument("--grad-norm", type=float, default=1.0)
+parser.add_argument('-pooling_ratio', nargs='+', type=float, default=[0.8])
+parser.add_argument('--dropout_ratio', type=float, default=0.1,
+                    help='dropout ratio')
+parser.add_argument('--bn', type=bool, default=False,
+                    help='batch normalization')
+parser.add_argument('--dataset', type=str, default='ogbg-moltoxcast',
+                    help='ogbg-molhiv/ogbg-molpcba/ogbg-moltox21/ogbg-moltoxcast/ogbg-molbbbp/ogbg-molsider/ogbg-molbace/ogbg-molclintox')
 parser.add_argument('--epochs', type=int, default=1000,
                     help='maximum number of epochs')
 parser.add_argument('--patience', type=int, default=20,
                     help='patience for earlystopping')
-parser.add_argument('--batch_size', type=int, default=128,
-                    help='batch size')
-parser.add_argument('--nhid', type=int, default=256,
-                    help='hidden size')
-parser.add_argument('--num_layers', type=int, default=1, help='number of GCN and pooling layers')
-parser.add_argument('--topk_ratio', nargs='+', type=float, default=[0.8])
-parser.add_argument('--lr', type=float, default=0.0015,
-                    help='learning rate')
-parser.add_argument('--bn', type=bool, default=False,
-                    help='batch normalization')
-parser.add_argument('--weight_decay', type=float, default=0.0001,
-                    help='weight decay')
-parser.add_argument('--dropout_ratio', type=float, default=0.3,
-                    help='dropout ratio')
 parser.add_argument('--attention_heads', type=int, default=1,
                     help='number of attention heads')
 parser.add_argument('--mask_mode', type=str, default='delete_edge',
                     help='delete_node/delete_edge')
-parser.add_argument('-lr_decay_step', dest='lr_decay_step', default=10000, type=int, help='lr decay step')
+parser.add_argument('-lr_decay_step', 	dest='lr_decay_step',default=10000, type=int, help='lr decay step')
 parser.add_argument('-lr_decay_factor', dest='lr_decay_factor', default=0.5, type=float, help='lr decay factor')
 
+
 args = parser.parse_args()
-args.device = 'cpu'
-random.seed(args.seed)
-np.random.seed(args.seed)
-torch.manual_seed(args.seed)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed(args.seed)
-    args.device = 'cuda:0'
 
 dataset = PygGraphPropPredDataset(name=args.dataset)
 
@@ -63,7 +58,6 @@ test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size,
 
 cls_criterion = torch.nn.BCEWithLogitsLoss()
 reg_criterion = torch.nn.MSELoss()
-
 
 def train(model, device, loader, optimizer, task_type):
     model.train()
@@ -87,7 +81,6 @@ def train(model, device, loader, optimizer, task_type):
             loss.backward()
             optimizer.step()
 
-
 def eval(model, device, loader, evaluator):
     model.eval()
     y_true = []
@@ -105,8 +98,8 @@ def eval(model, device, loader, evaluator):
             y_true.append(batch.y.view(pred.shape).detach().cpu())
             y_pred.append(pred.detach().cpu())
 
-    y_true = torch.cat(y_true, dim=0).numpy()
-    y_pred = torch.cat(y_pred, dim=0).numpy()
+    y_true = torch.cat(y_true, dim = 0).numpy()
+    y_pred = torch.cat(y_pred, dim = 0).numpy()
 
     input_dict = {"y_true": y_true, "y_pred": y_pred}
 
@@ -117,11 +110,20 @@ def main():
     with open('acc_result.txt', 'a+') as f:
         f.write(str(args) + '\n')
     ### automatic dataloading and splitting
-    model = Net(args).to(args.device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
     all_test_auc = []
     for i in range(10):
+        print("run {}".format(i))
+        random.seed(args.seed+i)
+        np.random.seed(args.seed+i)
+        torch.manual_seed(args.seed+i)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed(args.seed+i)
+            args.device = 'cuda:0'
+
+        model = Net(args).to(args.device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
         best_val = 0
 
         for epoch in range(1, args.epochs + 1):
@@ -157,8 +159,7 @@ def main():
         print("Test accuarcy:{}".format(test[dataset.eval_metric]))
 
         print('Finished training!')
-        # print('Best validation score: {}'.format(valid_curve[best_val_epoch]))
-        # print('Test score: {}'.format(test_curve[best_val_epoch]))
+
 
         with open('acc_result.txt', 'a+') as f:
             f.write(str(test[dataset.eval_metric]) + '\n')
@@ -166,7 +167,7 @@ def main():
         all_test_auc.append(test[dataset.eval_metric])
 
     print('10 run average:', np.mean(all_test_auc))
-    print('10 run std:', np.std(test[dataset.eval_metric]))
+    print('10 run std:', np.std(all_test_auc))
 
     with open('acc_result.txt', 'a+') as f:
         f.write(str(np.mean(all_test_auc)) + '\n')
